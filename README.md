@@ -1,8 +1,8 @@
 # dense-solver
 
-A C11 SAT solver by Merlin Numa. It can recognize when several independent requirements compete for too few slots. On the included pigeonhole inputs it reads the constraints, counts the available slots and returns UNSAT without branching. Version 0.0.2 recognizes both explicit conflicts and conflicts expressed through chains of binary clauses.
+A C11 SAT solver by Merlin Numa. It recognizes when too many requirements compete for too few places. Hall matching can find a shortage confined to part of a problem. The same code handles pigeonhole formulas and domino tiling. It can produce a certificate that a separate program checks against the original input.
 
-On the 65-pigeon, 64-hole sequential input, dense-solver finished in 2.87 ms and satsuma-iter+kissat finished in 114.63 ms. Both figures include startup, parsing and solving, with proof logging off. The experiment covers six pigeonhole formulas on one machine. [Benchmark methods and raw trials](BENCHMARK.md)
+Version 0.0.4 compares dense-solver, Kissat and CaDiCaL on 30 public formulas from SATLIB and the 2025 SAT Competition. The ZIP includes the timed inputs, their checksums, all trials and the comparison runner. [Public benchmark results](PUBLIC-BENCHMARKS.md) | [Earlier pigeonhole and chessboard results](BENCHMARK.md)
 
 ## Build and run
 
@@ -18,11 +18,17 @@ make test
 
 The default build needs a C compiler and GNU Make on Linux. It produces the command-line solver and a static library. The native verification suite runs with `./build/dense-solver --verify`. The additional integration checks in `make test` use Python 3.
 
-The solver accepts DIMACS on standard input or from a file. It tries parity elimination, then counting, then conflict-driven clause learning (CDCL). Every SAT verdict from the CLI or browser includes a model checked against the input. UNSAT output gives the method used. The release does not emit a DRAT or LRAT proof. Exit codes are 10 for SAT, 20 for UNSAT, 0 for UNKNOWN, and 1 for errors. Use `--help` for search controls.
+The solver accepts DIMACS on standard input or from a file. It tries parity elimination, sparse counting, Hall matching and finally conflict-driven clause learning (CDCL). Use `--no-hall` to run the v0.0.2 stage order. The solver checks every SAT model against the input. Use `--explain` to emit a project-format certificate for an UNSAT verdict reached by counting or matching. The checker uses only Python 3. Exit codes are 10 for SAT, 20 for UNSAT, 0 for UNKNOWN, and 1 for errors. Use `--help` for search controls.
 
-## Use the counting rule in another solver
+## Check an UNSAT result
 
-Link `build/libdense-solver.a` and include `dense_solver/reason.h`. Pass an initialized, loaded `ds_cnf` to `ds_reason_count`. On success the verdict is UNSAT or UNKNOWN. For UNKNOWN, continue with the host solver. The function borrows the input, works without global state, and can run independently of the other dense-solver stages.
+```sh
+./build/dense-solver --explain instances/chessboard32.cnf | python3 tests/check_certificate.py instances/chessboard32.cnf
+```
+
+## Use the rules in another solver
+
+Link `build/libdense-solver.a` and include `dense_solver/reason.h`. Call `ds_reason_count` on a loaded `ds_cnf` to try the sparse counter. If it returns UNKNOWN, call `ds_reason_hall` to try matching. If both return UNKNOWN, continue with the host solver. Each pass can run independently. To collect a certificate, use `ds_reason_count_certified` or pass a certificate to `ds_reason_hall`. Initialize it to zero and free it with `ds_count_certificate_destroy`. Recompile existing callers that allocate `ds_reason_summary` to pick up its new Hall report.
 
 ## Local browser workbench
 
@@ -33,7 +39,7 @@ make web
 
 Open `http://127.0.0.1:8080/` from the same computer. The optional web build needs libevent 2 development headers and pkg-config (`libevent-dev` and `pkg-config` on Debian or Devuan). Run it from the project root to read the recorded benchmarks. Pass a port number to use another port. Each process holds one working formula in memory.
 
-Load, edit, generate or download a DIMACS file. The Structure view shows the extracted groups, selected demands, parity equations and search counters. Benchmarks shows individual datasets, clocks and medians and can run fresh native trials. Verification runs the same C checks as the CLI. All application logic runs in C. The browser displays HTML and CSS.
+Load, edit, generate or download a DIMACS file. The Structure view shows the extracted groups, selected demands, Hall matching statistics, parity equations and search counters. Benchmarks shows individual datasets, clocks and medians and can run fresh native trials. Verification runs the same C checks as the CLI. All application logic runs in C. The browser displays HTML and CSS.
 
 ## Credits
 

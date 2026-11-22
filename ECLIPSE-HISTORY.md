@@ -10,6 +10,7 @@ Merlin Numa initiated and directed Eclipse through successive research prompts. 
 | August 19, 2026 | Eclipse v0.0.4 added `ec_reason_count`. It grouped placements that cannot coexist and counted the separate requirements those groups must satisfy. On 31 pigeons and 30 holes it found demand 31 and capacity 30. Three relaxed, satisfiable controls went through search and returned valid placements. | `CHANGELOG.md`, lines 1031-1036 and 1044-1052. `PHASE_0.0.4_TEST_REPORT.txt`. Experiments 09 and 10. |
 | November 8, 2026 | Eclipse v0.0.61 reported independent Lean kernel checks of the original pigeonhole verdicts for one through five holes. Counting also settled the six-hole case, where the independent refuter ran out of memory. | `PHASE_0.0.61_REPORT.md`, section *Result*. |
 | November 22, 2026 | dense-solver v0.0.1 extracted the C reasoner from the v0.0.61 snapshot. v0.0.2 incorporated a prototype's extensions for implied conflicts and sequential counters and measured the new C solver against satsuma-iter+kissat. | [Source credits](SOURCES.md) and [release benchmarks](BENCHMARK.md). |
+| November 22, 2026 | dense-solver v0.0.3 added Hall matching and checkable counting certificates, and tested the method on domino tiling. | [Source credits](SOURCES.md) and [release benchmarks](BENCHMARK.md). |
 
 ## Two changelog excerpts
 

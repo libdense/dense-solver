@@ -9,7 +9,7 @@ bool ds_configure(ds_cdcl_config *cfg, const char *key, const char *value);
 ds_status ds_generate(ds_cnf *out, unsigned pigeons, unsigned holes, bool sequential);
 ds_status ds_preset(ds_cnf *out, size_t index);
 int ds_run(FILE *out, const ds_cnf *f, const ds_cdcl_config *cfg, bool cdcl,
-    bool measure, bool detail, uint64_t parse_ns);
+    bool measure, bool detail, bool hall, bool emit_certificate, uint64_t parse_ns);
 int ds_verify(FILE *out);
 int ds_benchmark(FILE *out, unsigned trials);
 int ds_report(FILE *out, FILE *csv, const char *scope, const char *instance, bool html);

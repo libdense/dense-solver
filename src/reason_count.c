@@ -15,6 +15,8 @@ typedef struct {
     uint8_t *positive, *used, *touched;
     ds_count_report report;
     FILE *trace;
+    ds_count_certificate *certificate;
+    uint32_t *selected;
 } counter;
 
 static uint32_t node(ds_literal lit)
@@ -85,7 +87,76 @@ static void start_groups(counter *c, const char *pass)
     c->report.pass = pass;
 }
 
-static void evaluate(counter *c, const uint8_t *forced)
+void ds_count_certificate_destroy(ds_count_certificate *cert)
+{
+    if (!cert) return;
+    free(cert->clauses);
+    free(cert->group_offsets);
+    free(cert->group_literals);
+    free(cert->refuted);
+    memset(cert, 0, sizeof(*cert));
+}
+
+/* Assign each distinct live variable to its touched group once. Input clauses
+ * may repeat a literal. Only selected, forced-false literals need refutation. */
+static bool certify(counter *c, const uint8_t *forced)
+{
+    ds_count_certificate result = {0};
+    uint32_t count = c->report.forced_clause ? 1 : c->report.demand;
+    uint32_t *slots = calloc((size_t)c->report.amo_groups + 1, sizeof(*slots));
+    uint32_t *cursor = NULL;
+    result.clauses = calloc(count, sizeof(*result.clauses));
+    if (!slots || !result.clauses) goto fail;
+    result.clause_count = count;
+    if (c->report.forced_clause) result.clauses[0] = c->report.forced_clause - 1;
+    else memcpy(result.clauses, c->selected, count * sizeof(*result.clauses));
+
+    memset(c->used, 0, c->n);
+    for (uint32_t i = 0; i < count; ++i) {
+        uint32_t k = result.clauses[i];
+        for (uint32_t j = c->cnf->offsets[k]; j < c->cnf->offsets[k+1]; ++j)
+            c->used[c->cnf->literals[j]] = 1;
+    }
+    uint32_t live = 0;
+    for (uint32_t v = 1; v < c->n; ++v) {
+        if (!c->used[v]) continue;
+        if (forced && forced[v]) { ++result.refuted_count; continue; }
+        ++live;
+        if (!slots[c->group[v]]) slots[c->group[v]] = ++result.group_count;
+    }
+    result.group_offsets = calloc((size_t)result.group_count + 1, sizeof(*result.group_offsets));
+    result.group_literals = calloc((size_t)live + 1, sizeof(*result.group_literals));
+    result.refuted = calloc((size_t)result.refuted_count + 1, sizeof(*result.refuted));
+    cursor = calloc((size_t)result.group_count + 1, sizeof(*cursor));
+    if (!result.group_offsets || !result.group_literals || !result.refuted || !cursor) goto fail;
+    uint32_t dead = 0;
+    for (uint32_t v = 1; v < c->n; ++v) {
+        if (!c->used[v]) continue;
+        if (forced && forced[v]) result.refuted[dead++] = (ds_literal)v;
+        else ++result.group_offsets[slots[c->group[v]]];
+    }
+    for (uint32_t i = 0; i < result.group_count; ++i) {
+        result.group_offsets[i+1] += result.group_offsets[i];
+        cursor[i] = result.group_offsets[i];
+    }
+    for (uint32_t v = 1; v < c->n; ++v) {
+        if (c->used[v] && !(forced && forced[v])) {
+            uint32_t slot = slots[c->group[v]] - 1;
+            result.group_literals[cursor[slot]++] = (ds_literal)v;
+        }
+    }
+    free(cursor);
+    free(slots);
+    *c->certificate = result;
+    return true;
+fail:
+    free(cursor);
+    free(slots);
+    ds_count_certificate_destroy(&result);
+    return false;
+}
+
+static bool evaluate(counter *c, const uint8_t *forced)
 {
     ds_count_report *r = &c->report;
     memset(c->used, 0, c->n);
@@ -104,6 +175,7 @@ static void evaluate(counter *c, const uint8_t *forced)
             ++active;
         }
         if (!eligible) continue;
+        if (c->selected) c->selected[r->alo_selected] = k;
         ++r->alo_selected;
         ++r->demand;
         if (!active) {
@@ -132,6 +204,7 @@ static void evaluate(counter *c, const uint8_t *forced)
         for (uint32_t g = 1; g <= r->amo_groups && g <= 128; ++g)
             if (c->touched[g]) fprintf(c->trace, "c touched-group %u\n", g);
     }
+    return !r->fired || !c->certificate || certify(c, forced);
 }
 
 static int compare_u32(const void *a, const void *b)
@@ -178,8 +251,7 @@ static bool cliques(counter *c, graph *g, const uint8_t *forced)
     }
     free(candidates);
     free(mark);
-    evaluate(c, forced);
-    return true;
+    return evaluate(c, forced);
 }
 
 static bool chains(counter *c, const graph *g)
@@ -245,7 +317,7 @@ static bool chains(counter *c, const graph *g)
             for (uint32_t j = 0; j < count; ++j) c->group[members[j]] = group;
         }
     }
-    evaluate(c, NULL);
+    ok = evaluate(c, NULL);
 done:
     free(incoming); free(visited); free(in_chain); free(members); free(conflict);
     return ok;
@@ -298,10 +370,10 @@ done:
     return ok;
 }
 
-ds_status ds_count_traced(const ds_cnf *f, ds_verdict *out, ds_count_report *report, FILE *trace)
+ds_status ds_count_traced(const ds_cnf *f, ds_verdict *out, ds_count_report *report, FILE *trace, ds_count_certificate *certificate)
 {
     if (!f || !out) return DS_ERR_INVALID_ARGUMENT;
-    counter c = { .cnf = f, .n = f->variable_count+1, .trace = trace };
+    counter c = { .cnf = f, .n = f->variable_count+1, .trace = trace, .certificate = certificate };
     graph direct = {0}, big = {0};
     bool ok = true;
     if (f->variable_count > INT32_MAX-1) return DS_ERR_CAPACITY;
@@ -329,6 +401,10 @@ ds_status ds_count_traced(const ds_cnf *f, ds_verdict *out, ds_count_report *rep
     }
     c.report.analysis_ops += f->clause_count;
     if (!c.demand_count) goto done;
+    if (certificate) {
+        c.selected = calloc(c.demand_count, sizeof(*c.selected));
+        if (!c.selected) { ok = false; goto done; }
+    }
     if (direct_pairs) {
         start_groups(&c, "direct");
         ok = make_graph(&c, false, &direct) && cliques(&c, &direct, NULL);
@@ -344,11 +420,17 @@ done:
     if (ok && c.report.fired) *out = DS_VERDICT_UNSAT;
     if (report) *report = c.report;
     destroy_graph(&direct); destroy_graph(&big);
-    free(c.demands); free(c.positive); free(c.used); free(c.group); free(c.touched);
+    free(c.selected); free(c.demands); free(c.positive); free(c.used); free(c.group); free(c.touched);
     return ok ? DS_OK : DS_ERR_OUT_OF_MEMORY;
 }
 
 ds_status ds_reason_count(const ds_cnf *cnf, ds_verdict *out, ds_count_report *report)
 {
-    return ds_count_traced(cnf, out, report, NULL);
+    return ds_count_traced(cnf, out, report, NULL, NULL);
+}
+
+ds_status ds_reason_count_certified(const ds_cnf *cnf, ds_verdict *out,
+    ds_count_report *report, ds_count_certificate *certificate)
+{
+    return ds_count_traced(cnf, out, report, NULL, certificate);
 }

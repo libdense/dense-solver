@@ -1,13 +1,13 @@
 {
-  "title": "dense-solver: A pigeonhole SAT benchmark",
+  "title": "dense-solver for counting and matching in SAT",
   "upload_type": "software",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "creators": [
     {
       "name": "Numa, Merlin"
     }
   ],
-  "description": "<p>A C11 SAT solver with a reusable counting rule for explicit and implied conflicts. The six bundled pigeonhole formulas use pairwise or sequential encodings. On the 65/64 sequential input, median end-to-end time was 2.87 ms for dense-solver and 114.63 ms for satsuma-iter+kissat over seven single-core runs with proof logging off.</p><p>Includes C source, a local browser interface, input files, raw timings and reproduction commands. Merlin Numa directed development using the most capable ChatGPT and Claude models available through the author's paid subscriptions at the time.</p><p>Merlin Numa initiated and directed Eclipse through successive research prompts. Eclipse v0.0.4 recorded the original pigeonhole counting rule on August 19, 2026. The release includes dated changelog excerpts and the SHA-256 fingerprint of the Eclipse v0.0.61 source archive.</p>",
+  "description": "<p>A C11 SAT solver by Merlin Numa. Its counting and matching rules recognize when too many requirements compete for too few places. Both rules can be used by other solvers. Version 0.0.4 benchmarks dense-solver against native Kissat and CaDiCaL on 22 public SATLIB formulas and eight SAT Competition 2025 main-track formulas. It includes the 30 inputs, their sources and checksums, raw timings and reproduction commands. The earlier pigeonhole and domino-tiling experiments are also included.</p><p>Merlin Numa initiated and directed the Eclipse project, whose v0.0.4 changelog records the original pigeonhole counter on August 19, 2026. Development used the most capable ChatGPT and Claude models available through the author's paid subscriptions at the time. The release includes dated source references and archive fingerprints.</p>",
   "license": "mit",
   "access_right": "open",
   "language": "eng",
@@ -16,7 +16,9 @@
     "pigeonhole principle",
     "cardinality constraints",
     "SAT solver",
-    "reproducible benchmarking"
+    "reproducible benchmarking",
+    "Hall matching",
+    "domino tiling"
   ],
   "related_identifiers": [
     {
@@ -43,6 +45,31 @@
       "identifier": "10.1016/0304-3975(85)90144-6",
       "relation": "cites",
       "scheme": "doi"
+    },
+    {
+      "identifier": "10.1112/jlms/s1-10.37.26",
+      "relation": "cites",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1137/0202019",
+      "relation": "cites",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1007/978-3-030-20652-9_13",
+      "relation": "cites",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "https://www.cs.ubc.ca/~hoos/SATLIB/benchm.html",
+      "relation": "cites",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://satcompetition.github.io/2025/downloads.html",
+      "relation": "cites",
+      "scheme": "url"
     }
   ]
 }

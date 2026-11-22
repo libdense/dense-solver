@@ -16,9 +16,10 @@ typedef struct {
     bool cdcl;
 } session;
 
-static const char *const datasets[] = {"native-v0.0.2", "reference", "repeat", "satsuma-v0.0.1", "live"};
-static const char *const descriptions[] = {"Native v0.0.2 comparison", "v0.0.1 reference", "v0.0.1 repeat",
+static const char *const datasets[] = {"public-v0.0.4", "native-v0.0.3", "native-v0.0.2", "reference", "repeat", "satsuma-v0.0.1", "live"};
+static const char *const descriptions[] = {"Public benchmarks v0.0.4", "Native v0.0.3 comparison", "Native v0.0.2 comparison", "v0.0.1 reference", "v0.0.1 repeat",
     "v0.0.1 satsuma comparison", "Live native solve"};
+#define DATASET_COUNT (sizeof(datasets) / sizeof(datasets[0]))
 static const char *get(const struct evkeyvalq *p, const char *key)
 {
     const char *value = evhttp_find_header(p, key);
@@ -181,10 +182,29 @@ static void solver_page(FILE *fp, session *s, bool edit)
 
 static FILE *open_data(const session *s, size_t i)
 {
-    if (i == 4) return s->live ? fmemopen(s->live,strlen(s->live),"r") : NULL;
+    if (!strcmp(datasets[i], "live")) return s->live ? fmemopen(s->live,strlen(s->live),"r") : NULL;
     char name[128];
     snprintf(name,sizeof(name),"results/%s.csv",datasets[i]);
     return fopen(name,"r");
+}
+
+static void public_input_options(FILE *out, const char *selected)
+{
+    FILE *manifest = fopen("bench/public-inputs.csv", "r");
+    if (!manifest) return;
+    char *line = NULL;
+    size_t size = 0;
+    /* Input IDs are the unquoted first column of our manifest. */
+    if (getline(&line, &size, manifest) >= 0) {
+        while (getline(&line, &size, manifest) >= 0) {
+            size_t n = strspn(line, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-");
+            if (n == 0 || n >= 100 || line[n] != ',') continue;
+            line[n] = 0;
+            option(out, line, line, !strcmp(line, selected));
+        }
+    }
+    free(line);
+    fclose(manifest);
 }
 
 static void bench_page(FILE *fp, session *s, const struct evkeyvalq *q)
@@ -192,17 +212,33 @@ static void bench_page(FILE *fp, session *s, const struct evkeyvalq *q)
     header(fp,"Benchmarks");
     const char *filter = get(q,"scope"), *instance = get(q,"instance");
     size_t data = 0;
-    for (size_t i=0; i<5; ++i) if (!strcmp(get(q,"data"),datasets[i])) data=i;
-    if (!strcmp(filter,"all")) filter="";
+    for (size_t i=0; i<DATASET_COUNT; ++i) if (!strcmp(get(q,"data"),datasets[i])) data=i;
+    if (!strcmp(filter,"all") || (!strcmp(datasets[data],"public-v0.0.4") && !strcmp(filter,"solve"))) filter="";
     if (!strcmp(instance,"all")) instance="";
     fputs("<section><form action='/bench'><label>Dataset <select name=data>",fp);
-    for(size_t i=0;i<5;++i) option(fp,datasets[i],descriptions[i],i==data);
+    for(size_t i=0;i<DATASET_COUNT;++i) option(fp,datasets[i],descriptions[i],i==data);
     fputs("</select></label><label>Clock <select name=scope>",fp);
-    option(fp,"all","All clocks",!*filter); option(fp,"solve","Solve only",!strcmp(filter,"solve"));
+    option(fp,"all","All clocks",!*filter);
+    if (strcmp(datasets[data],"public-v0.0.4")) option(fp,"solve","Solve only",!strcmp(filter,"solve"));
     option(fp,"process","Full process",!strcmp(filter,"process"));
     fputs("</select></label><label>Instance <select name=instance>",fp);
     option(fp,"all","All instances",!*instance);
-    for (size_t i=0;i<6;++i) option(fp,ds_presets[i],ds_presets[i],!strcmp(instance,ds_presets[i]));
+    if (!strcmp(datasets[data], "public-v0.0.4")) {
+        public_input_options(fp, instance);
+    } else {
+        for (size_t i=0;i<6;++i) option(fp,ds_presets[i],ds_presets[i],!strcmp(instance,ds_presets[i]));
+    }
+    if (!strcmp(datasets[data], "native-v0.0.3")) {
+        static const char *const extra_inputs[] = {
+            "chessboard12", "chessboard16", "chessboard32",
+            "php8x8-pairwise", "php8x8-sequential", "php9x8-bitwise",
+            "php9x8-cardnetwrk", "php9x8-kmtotalizer", "php9x8-ladder",
+            "php9x8-mtotalizer", "php9x8-pairwise-functional",
+            "php9x8-sequential-renamed", "php9x8-sortnetwrk", "php9x8-totalizer"
+        };
+        for (size_t i = 0; i < sizeof(extra_inputs) / sizeof(extra_inputs[0]); ++i)
+            option(fp, extra_inputs[i], extra_inputs[i], !strcmp(instance, extra_inputs[i]));
+    }
     fputs("</select></label><button>Apply</button></form><form method=post action='/live'>"
         "<label>Trials <input type=number name=trials min=1 max=100 value=7></label><button>Run native benchmark</button></form></section>",fp);
     fprintf(fp,"<section><h2>%s</h2>",descriptions[data]);
@@ -211,7 +247,7 @@ static void bench_page(FILE *fp, session *s, const struct evkeyvalq *q)
         if (ds_report(fp,csv,*filter?filter:NULL,*instance?instance:NULL,true)) fputs("<p>Invalid benchmark CSV.</p>",fp);
         fclose(csv);
         fprintf(fp,"<p><a href='/csv?data=%s'>Download trials</a></p>",datasets[data]);
-    } else fputs(data==4?"<p>Run the native benchmark to collect timings.</p>":"<p>Run the application from the release directory to read this dataset.</p>",fp);
+    } else fputs(!strcmp(datasets[data], "live")?"<p>Run the native benchmark to collect timings.</p>":"<p>Run the application from the release directory to read this dataset.</p>",fp);
     fputs("<p class=muted>Solve time starts after input loading. Full-process time includes startup, parsing and exit. Live trials use one running process.</p></section>",fp);
 }
 
@@ -242,7 +278,7 @@ static bool run_session(session *s)
     FILE *fp = open_memstream(&buf,&length);
     if (!fp) { ds_cnf_destroy(&f); return false; }
     if (status != DS_OK) fprintf(fp,"c solver error DIMACS input (%s)\n",ds_status_string(status));
-    else if (ds_run(fp,&f,&s->config,s->cdcl,false,true,elapsed)==1)
+    else if (ds_run(fp,&f,&s->config,s->cdcl,false,true,true,false,elapsed)==1)
         fputs("c solver error Could not complete this solve.\n",fp);
     ds_cnf_destroy(&f);
     if (fclose(fp)) { free(buf); return false; }
@@ -348,6 +384,7 @@ static void structure(FILE *fp, session *s)
     sample_group groups[128]={0};
     uint32_t demands[128], selected=0, total=0, capacity=0, group_count=0, sample_count=0;
     char pass[24]="", method[24]="";
+    uint32_t hall_demands = 0, hall_groups = 0;
     char *lines=strdup(s->result);
     if (!lines) { ds_cnf_destroy(&f); fputs("<section>Out of memory.</section>",fp); return; }
     char *state=NULL;
@@ -366,11 +403,17 @@ static void structure(FILE *fp, session *s)
             demands[selected++]=a;
         } else if (sscanf(l,"c groups %u selected %*u demand %u capacity %u",&group_count,&total,&capacity)==3) {
             continue;
+        } else if (sscanf(l,"c demand %u capacity %u",&hall_demands,&hall_groups)==2) {
+            continue;
         } else if (sscanf(l,"c method %23s",method)==1) {
             continue;
         }
     }
-    fprintf(fp,"<section><h2>Demand and capacity</h2><p>Solver method <b>%s</b>. Counting pass <b>%s</b>.</p>"
+    if (!strcmp(method, "hall")) {
+        fprintf(fp,"<section><h2>Hall matching</h2><p>%u demands compete for %u groups.</p>",
+            hall_demands,hall_groups);
+        selected = sample_count = 0;
+    } else fprintf(fp,"<section><h2>Demand and capacity</h2><p>Solver method <b>%s</b>. Counting pass <b>%s</b>.</p>"
         "<p>Disjoint demands <b>%u</b> &nbsp; Available groups <b>%u</b> &nbsp; Groups found <b>%u</b></p>",
         *method?method:"unknown",*pass?pass:"none",total,capacity,group_count);
     if (sample_count) {
@@ -443,7 +486,7 @@ static void handle(struct evhttp_request *r, void *arg)
         if (s->result) fputs(s->result,fp); else code=404;
     } else if (!strcmp(path,"/csv")) {
         type="text/csv; charset=utf-8"; code=404;
-        for (size_t i=0;i<5;++i) if (!strcmp(datasets[i],get(&q,"data"))) {
+        for (size_t i=0;i<DATASET_COUNT;++i) if (!strcmp(datasets[i],get(&q,"data"))) {
             FILE *csv=open_data(s,i);
             if (csv) {
                 char block[4096]; size_t used; code=200;

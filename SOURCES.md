@@ -1,6 +1,6 @@
 # Sources and credits
 
-Merlin Numa's counting implementation first appeared in the project on August 19, 2026. The public C solver derives from the November 8 Eclipse v0.0.61 source snapshot. Its solve order is parity elimination, counting and then conflict-driven clause learning. During release preparation, the identifiers and headers were renamed. In v0.0.1 the compiled instruction bytes in the counting, parity, dispatch and CDCL modules matched the benchmark build under GCC 14.2.0.
+Merlin Numa's counting implementation first appeared in the project on August 19, 2026. The public C solver derives from the November 8 Eclipse v0.0.61 source snapshot. The original solve order was parity elimination, counting and then conflict-driven clause learning. During release preparation, the identifiers and headers were renamed. In v0.0.1 the compiled instruction bytes in the counting, parity, dispatch and CDCL modules matched the benchmark build under GCC 14.2.0.
 
 The dated changelog excerpts, earlier experiment and archive fingerprints are available in the [Eclipse project history](ECLIPSE-HISTORY.md).
 
@@ -21,7 +21,7 @@ The dated changelog excerpts, earlier experiment and archive fingerprints are av
 | Lingeling, native C library | 1.0.0, tag `rel-1.0.0`, commit `89a167d0d2efe98d983c87b5b84175b40ea55842` | [Lingeling](https://github.com/arminbiere/lingeling/tree/rel-1.0.0) |
 | Kissat, CaDiCaL and MiniSat | 4.0.4, 3.0.0 and 2.2 via python-sat 1.9.dev24 | [PySAT](https://github.com/pysathq/pysat), [Kissat](https://github.com/arminbiere/kissat), [CaDiCaL](https://github.com/arminbiere/cadical), [MiniSat](https://minisat.se/) |
 | CryptoMiniSat | 5.18.0 via pycryptosat 5.18.0 | [CryptoMiniSat](https://github.com/msoos/cryptominisat) |
-| AI-assisted development | OpenAI ChatGPT and Anthropic Claude, August to November 2026. Exact model identifiers are unavailable for individual sessions. | [ChatGPT](https://chatgpt.com/), [Claude](https://claude.ai/) |
+| AI-assisted development | OpenAI ChatGPT and Anthropic Claude, August to November 2026. The independent matching patch credits Claude Opus 5.5. Earlier sessions lack exact model identifiers. | [ChatGPT](https://chatgpt.com/), [Claude](https://claude.ai/) |
 
 The comparison solvers are obtained separately under their upstream licenses. The reference used the following distribution archives.
 
@@ -38,3 +38,21 @@ The supplied MIT-licensed TypeScript prototype contributed the sparse conflict g
 - satsuma-iter+kissat came from the `anders.tar.xz` main-track submission archive. SHA-256: `1951097402831eaaa9cdd6b670a09b9e9cbe1714e16d48b17d420e3b40816623`. Extract the archive and use its `satsuma-iter-kissat/src` directory with the comparison runner. [SAT Competition 2026 downloads](https://satcompetition.github.io/2026/downloads.html)
 - PySAT's bitwise and ladder at-most-one encodings supply the two extra 9/8 test fixtures. Generate them with the same row order as `bench/generate.py`, using `EncType.bitwise` or `EncType.ladder` for each column. [PySAT](https://github.com/pysathq/pysat)
 - The optional browser workbench links against libevent 2 for local HTTP and form handling. [libevent](https://libevent.org/)
+
+## Version 0.0.3
+
+Merlin Numa directed an independent MIT-licensed implementation of the matching pass with Claude Opus 5.5 on November 22, 2026. Its source archive, independently numbered 0.0.2, has SHA-256 `1674508de71e59daa944e9afab4279d4816246239c955b666a9b2fa25131ac91`. The v0.0.3 integration used ChatGPT to adapt the matching pass, certificate checker, generators and tests to the prepared C release. That baseline is commit `dd3bfde8f06bc6ee5f5f23c237e53a77d626923d`. The integration retains the sparse counter, extends it to emit certificates, and bounds the conflict pairs stored by the matching pass.
+
+- Philip Hall, *On Representatives of Subsets* (1935). The matching pass identifies a group of requirements with too few available places. [Paper](https://doi.org/10.1112/jlms/s1-10.37.26)
+- John E. Hopcroft and Richard M. Karp, *An n^5/2 Algorithm for Maximum Matchings in Bipartite Graphs* (1973). The solver uses bipartite matching to find the shortage. [Paper](https://doi.org/10.1137/0202019)
+- Marijn J. H. Heule, Benjamin Kiesl and Armin Biere, *Clausal Proofs of Mutilated Chessboards* (2019). Prior work on certifying this domino-tiling family. [Paper](https://doi.org/10.1007/978-3-030-20652-9_13)
+
+## Version 0.0.4
+
+The 22 classic formulas come from the SATLIB collection. The benchmark manifest credits the individual files and provides the archive member names and checksums. The DIMACS pigeonhole files are attributed to John Hooker, the flat graph-coloring files to Joseph Culberson, and the parity-learning files to James Crawford. The other sets are the SATLIB uniform random 3-SAT collection and SATPLAN Blocks World. [SATLIB index](https://www.cs.ubc.ca/~hoos/SATLIB/benchm.html) | [Input manifest](bench/public-inputs.csv)
+
+The eight competition formulas came directly from the Global Benchmark Database. The selection used RocSAT's list of compact competition representatives. Each selected formula's main-track membership, original filename, attribution and verdict were checked against the competition database. The manifest records the database's author identifiers. [SAT Competition 2025](https://satcompetition.github.io/2025/downloads.html) | [GBD main-track list](https://benchmark-database.de/?context=cnf&track=main_2025) | [RocSAT selection manifest](https://github.com/mpizenberg/rocsat/blob/5c3ba48f22acc4ffbf1b35a12c15a8aec41523cb/bench/corpus.toml)
+
+The comparison uses the upstream release executables for Kissat 4.0.4 and CaDiCaL 3.0.0. The SHA-256 digests of their GitHub source tarballs were `bfe93eaa6323b48011e4b1fcf74b3f2e20f9de544767e728009e5b2018296193` and `282b1c9422fde8631cb721b86450ae94df4e8de0545c17a69a301aaa4bf92fcf`, respectively. [Kissat rel-4.0.4](https://github.com/arminbiere/kissat/tree/rel-4.0.4) | [CaDiCaL rel-3.0.0](https://github.com/arminbiere/cadical/tree/rel-3.0.0)
+
+The project MIT license covers dense-solver's code. The files in `bench/public-instances` are third-party benchmark data. Their source notices and attributions are preserved. Merlin Numa directed preparation of this comparison using ChatGPT.

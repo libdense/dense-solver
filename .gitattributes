@@ -1,1 +1,2 @@
 * text=auto eol=lf
+/bench/public-instances/*.cnf -text -diff

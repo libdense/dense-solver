@@ -1,4 +1,4 @@
-/* Try parity and counting before conflict-driven search. */
+/* Try parity, sparse counting and Hall matching before conflict-driven search. */
 
 #include <string.h>
 
@@ -11,16 +11,18 @@ const char *ds_reason_source_string(ds_reason_source source)
         return "xor";
     case DS_SOURCE_COUNT:
         return "count";
+    case DS_SOURCE_HALL:
+        return "hall";
     case DS_SOURCE_SEARCH:
         return "search";
     }
     return "invalid";
 }
 
-ds_status ds_solve_traced(const ds_cnf *cnf,
-    const ds_cdcl_config *config, ds_verdict *out_verdict,
+ds_status ds_solve_configured(const ds_cnf *cnf,
+    const ds_cdcl_config *config, bool enable_hall, ds_verdict *out_verdict,
     int8_t *out_model, ds_work_ledger *out_ledger,
-    ds_reason_summary *out_summary, FILE *trace)
+    ds_reason_summary *out_summary, FILE *trace, ds_count_certificate *certificate)
 {
     ds_reason_summary summary;
     ds_verdict verdict = DS_VERDICT_UNKNOWN;
@@ -46,7 +48,7 @@ ds_status ds_solve_traced(const ds_cnf *cnf,
         goto conclude;
     }
 
-    status = ds_count_traced(cnf, &verdict, &summary.count_report, trace);
+    status = ds_count_traced(cnf, &verdict, &summary.count_report, trace, certificate);
     if (status != DS_OK) {
         return status;
     }
@@ -56,6 +58,15 @@ ds_status ds_solve_traced(const ds_cnf *cnf,
         goto conclude;
     }
 
+    if (enable_hall) {
+        status = ds_reason_hall(cnf, 0, &verdict, &summary.hall_report, certificate);
+        if (status != DS_OK && status != DS_ERR_OUT_OF_MEMORY) return status;
+        summary.reasoning_ops += summary.hall_report.analysis_ops;
+        if (status == DS_OK && verdict == DS_VERDICT_UNSAT) {
+            summary.source = DS_SOURCE_HALL;
+            goto conclude;
+        }
+    }
     summary.source = DS_SOURCE_SEARCH;
     status = ds_solve_cdcl(cnf, config, &verdict, out_model, out_ledger);
     if (status != DS_OK) {
@@ -68,6 +79,13 @@ conclude:
         *out_summary = summary;
     }
     return DS_OK;
+}
+
+ds_status ds_solve_traced(const ds_cnf *cnf, const ds_cdcl_config *config,
+    ds_verdict *out, int8_t *model, ds_work_ledger *ledger,
+    ds_reason_summary *summary, FILE *trace)
+{
+    return ds_solve_configured(cnf, config, true, out, model, ledger, summary, trace, NULL);
 }
 
 ds_status ds_solve_reasoned(const ds_cnf *cnf, const ds_cdcl_config *config,

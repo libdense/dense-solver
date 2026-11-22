@@ -38,8 +38,10 @@ def shuffled(text, rng):
 
 
 def main():
-    for file in sorted((ROOT/"instances").glob("*.cnf")):
-        size, encoding = file.stem[3:].split("-")
+    for file in sorted((ROOT/"instances").glob("php*.cnf")):
+        size, encoding = file.stem[3:].split("-", 1)
+        if encoding not in ("pairwise", "sequential"):
+            continue
         p,h = size.split("x")
         assert run("--generate",p,h,encoding) == file.read_text()
     rng = random.Random(61031)

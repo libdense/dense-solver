@@ -45,6 +45,10 @@ def main():
         text="p cnf 1 1\n1 0\n"
         body=b'--separator\r\nContent-Disposition: form-data; name="file"; filename="sample.cnf"\r\n\r\n'+text.encode()+b'\r\n--separator--\r\n'
         assert request("/upload",raw=body,content_type="multipart/form-data; boundary=separator")[0] == 303
+        board = (ROOT / "instances/chessboard12.cnf").read_text()
+        post("/solve",dict(settings,cnf=board))
+        assert "Hall matching" in get("/structure") and "c method hall" in get("/output")
+        post("/solve",dict(settings,cnf=text))
         assert text in get("/")
         post("/solve",settings)
         assert "s SATISFIABLE" in get("/output") and "c xor-row" in get("/structure")
@@ -56,6 +60,14 @@ def main():
         post("/live",{"trials":"3"})
         assert "Live native solve" in get("/bench?data=live")
         assert len(list(csv.DictReader(io.StringIO(get("/csv?data=live")))))==18
+        table = get("/bench?instance=sc25-fpga-routing").split("<tbody>")[1]
+        assert "sc25-fpga-routing" in table and "sc25-scheduling" not in table
+        assert "kissat-4.0.4" in table and "dense-solver-0.0.4" in table
+        board_table = get("/bench?data=native-v0.0.3&scope=process&instance=chessboard32").split("<tbody>")[1]
+        assert "dense-solver-0.0.3" in board_table and "chessboard32" in board_table
+        assert "php9x8" not in board_table
+        trials = csv.DictReader(io.StringIO(get("/csv?data=native-v0.0.3")))
+        assert len({row["instance"] for row in trials}) == 20
         assert "satsuma-iter+kissat" in get("/bench?data=native-v0.0.2&scope=process")
         assert "satsuma-iter+kissat" not in get("/bench?data=native-v0.0.2&scope=solve").split("<tbody>")[1]
         assert "satsuma-iter+kissat-competition" in get("/bench?data=satsuma-v0.0.1&scope=process")

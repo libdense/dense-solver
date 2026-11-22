@@ -1,6 +1,59 @@
-# Pigeonhole benchmarks
+# Counting and matching benchmarks
 
-## Native v0.0.2
+The v0.0.4 comparison uses 30 public formulas with known answers. [Public benchmark results](PUBLIC-BENCHMARKS.md)
+
+## Version 0.0.3
+
+The release was tested on 20 DIMACS inputs. The sparse counter or Hall matching settled all 18 unsatisfiable inputs before search. The solver returned valid assignments on both satisfiable controls. The table shows median **end-to-end milliseconds** on selected inputs. [Raw trials for all 20](results/native-v0.0.3.csv)
+
+| Input | dense-solver v0.0.3 | v0.0.3 with Hall off | dense-solver v0.0.2 | satsuma-iter+kissat |
+| --- | ---: | ---: | ---: | ---: |
+| 65 pigeons / 64 holes, sequential | 2.83 | 2.76 | 2.90 | 123.78 |
+| 9 pigeons / 8 holes, totalizer | 2.36 | 175.09 | 172.14 | 6.09 |
+| 9 pigeons / 8 holes, renamed sequential | 2.34 | 248.72 | 244.61 | 6.16 |
+| 12-by-12 chessboard | 2.36 | 1,072.15 | 1,099.48 | 420.83 |
+| 32-by-32 chessboard | 3.64 | >5,000 | >5,000 | >5,000 |
+| 8 pigeons / 8 holes, sequential, SAT | 1.21 | 1.12 | 1.14 | 3.85 |
+
+On the original six pigeonhole inputs, the sparse counter still settled every case. Matching made the largest difference on the boards and several alternate encodings. On the two satisfiable controls, enabling Hall added 0.05 ms and 0.13 ms to median solve time. These measurements cover structured inputs on one machine.
+
+Each completed cell contains seven fresh processes pinned to one logical CPU of an AMD EPYC 9V74 on Debian 13 x86-64, November 22, 2026. The dense-solver builds used GCC 14.2.0 and `-O3`. Run order was shuffled within each trial. Each solver received the same input file, with proof output off. The end-to-end clock includes startup, parsing and exit. For satsuma-iter+kissat it also includes both executables and the intermediate file. A five-second process timeout ended further trials for that solver and input. The CSV also gives dense-solver's internal solve time after parsing. [Competitor source and checksum](SOURCES.md)
+
+```sh
+make
+python3 bench/head_to_head.py --all-inputs --no-hall-control --previous /path/to/v0.0.2/build/dense-solver --satsuma-src /path/to/satsuma-iter-kissat/src --timeout 5 --output build/comparison.csv
+./build/dense-solver --report build/comparison.csv
+```
+
+Omit `--previous` or `--satsuma-src` to run with the binaries you have. Choose a new output filename for each run.
+
+### The 368-by-368 chessboard
+
+Remove the two opposite corners from an even board and there are two more squares of one color than the other. Each domino covers one square of each color. The solver receives only the placement clauses, and finds the shortage through matching. On this input with 270,108 variables and 943,544 clauses, its certificate identifies 67,712 requirements competing for 67,710 groups. [Compressed certificate](results/chessboard368-certificate.txt.gz) | [Raw trials](results/chessboard368-timings.csv)
+
+| Operation | Seconds | Runs |
+| --- | ---: | ---: |
+| Solve after parsing | 0.473 | 7, median |
+| Whole process, verdict only | 0.531 | 7, median |
+| Whole process, writing the explanation and certificate | 0.524 | 7, median |
+| Independently check the saved certificate | 5.067 | 1 |
+
+Verdict and certificate timings came from separate invocations on the same logical CPU. All seven certificate runs emitted the same certificate. This board was measured with dense-solver only. The independent checker verifies the project's counting certificate format.
+
+```sh
+make
+python3 bench/chessboard.py 368 build/chessboard368.cnf
+gzip -dc results/chessboard368-certificate.txt.gz | python3 tests/check_certificate.py build/chessboard368.cnf
+python3 bench/board_times.py build/chessboard368.cnf build/board-run
+```
+
+The generated DIMACS SHA-256 is `df2414720063d6ab260af693aab6bcfe46134c96190695ec6d265d11976dfb5c`. The uncompressed certificate SHA-256 is `c7655674a21696881a02aa86b592f207bb8489c03002f07696575466faf42422`.
+
+### Correctness
+
+`make test` checks 2,000 small formulas against truth tables in both solver modes. It also checks the standalone C API, 300 matching cases, 293 brute-force controls, shuffled and signed formulas, and acceptance or rejection of counting certificates. In a separate check, CaDiCaL 3.0.0 agreed on 1,000 formulas in both modes (654 SAT, 346 UNSAT). The optional comparison dependencies are listed in `bench/requirements.txt`. Run `python3 tests/crosscheck.py` to repeat.
+
+## Historical v0.0.2 benchmark
 
 All six inputs returned UNSAT by counting. Each row gives median milliseconds on the same DIMACS file. Process time includes launching each executable, parsing, solving and exit. [Individual trials](results/native-v0.0.2.csv)
 
@@ -15,7 +68,7 @@ All six inputs returned UNSAT by counting. Each row gives median milliseconds on
 
 Seven fresh runs per completed cell on one logical CPU of an AMD EPYC 9V74, Debian 13 x86-64, GCC 14.2.0, `-O3`, November 22, 2026. Run order was shuffled deterministically. A five-second timeout stopped further trials for that solver on that input. dense-solver used its native measurement mode. The competitor used the submission's satsuma preprocessing flags followed by its bundled Kissat binary. The process clock includes both stages and the intermediate file. Both solvers ran with proof logging off. Sub-millisecond solve times depend on the CPU, build and timer.
 
-The original C release and the competition software are optional inputs to the runner. Set the paths below to their local build locations. The source archive and checksum for the competitor are listed in [SOURCES.md](SOURCES.md).
+Run the following historical comparison from a v0.0.2 checkout. The original C release and the competition software are optional inputs to the runner. Set the paths below to their local build locations. The source archive and checksum for the competitor are listed in [SOURCES.md](SOURCES.md).
 
 ```sh
 make

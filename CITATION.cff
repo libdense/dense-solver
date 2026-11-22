@@ -1,23 +1,24 @@
 cff-version: 1.2.0
 message: "If you use this software or benchmark, please cite this release."
-title: "dense-solver: A pigeonhole SAT benchmark"
+title: "dense-solver for counting and matching in SAT"
 type: software
-version: "0.0.2"
+version: "0.0.4"
 authors:
   - given-names: Merlin
     family-names: Numa
 license: MIT
 repository-code: "https://github.com/libdense/dense-solver"
 abstract: >-
-  A C SAT solver and a reproducible single-core benchmark of the pigeonhole
-  principle. The release includes pairwise and sequential-counter DIMACS inputs,
-  native source, a reusable counting pass, a local browser interface and individual timings. Merlin Numa
-  directed the work using OpenAI ChatGPT and Anthropic Claude through paid
-  subscriptions.
+  A C11 SAT solver with reusable sparse counting and Hall matching. The
+  release includes 30 public SAT benchmarks, native solver comparisons,
+  counting certificates, an independent checker and a reusable C library.
+  Merlin Numa directed development using OpenAI ChatGPT and Anthropic Claude.
 keywords:
   - Boolean satisfiability
   - pigeonhole principle
   - cardinality constraints
+  - Hall matching
+  - domino tiling
   - SAT solver
   - reproducible benchmarking
 

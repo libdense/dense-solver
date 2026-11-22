@@ -34,6 +34,7 @@ typedef struct {
     char instance[100], solver[100], scope[10];
     uint64_t *times;
     size_t count, cap, timeouts;
+    double shortest_timeout_ns;
 } series;
 
 static bool token(const char *s)
@@ -84,7 +85,14 @@ int ds_report(FILE *out, FILE *csv, const char *scope, const char *instance, boo
             strcpy(rows[idx].instance,f[0]); strcpy(rows[idx].solver,f[2]); strcpy(rows[idx].scope,f[1]);
         }
         series *r = &rows[idx];
-        if (timeout) { ++r->timeouts; continue; }
+        if (timeout) {
+            char *end = NULL;
+            double seconds = strtod(f[6], &end);
+            double bound = (*end == 0 && isfinite(seconds) && seconds > 0) ? seconds * 1e9 : 0;
+            if (r->timeouts == 0 || bound < r->shortest_timeout_ns) r->shortest_timeout_ns = bound;
+            ++r->timeouts;
+            continue;
+        }
         if (r->cap == r->count) {
             size_t next = r->cap ? 2*r->cap : 8;
             uint64_t *p = realloc(r->times,next*sizeof(*p));
@@ -104,8 +112,13 @@ int ds_report(FILE *out, FILE *csv, const char *scope, const char *instance, boo
                 qsort(r->times, r->count, sizeof(*r->times), compare);
                 snprintf(low,sizeof(low),"%.6f",(double)r->times[0]/1e6);
                 snprintf(high,sizeof(high),"%.6f",(double)r->times[r->count-1]/1e6);
-                median_ms = ((double)r->times[(r->count-1)/2]+(double)r->times[r->count/2])/2e6;
-                if (!r->timeouts) snprintf(mid,sizeof(mid),"%.6f",median_ms);
+                /* A timeout lies beyond every successful trial at the same deadline. */
+                size_t attempts = r->count + r->timeouts;
+                if (attempts / 2 < r->count && (!r->timeouts ||
+                        (double)r->times[attempts / 2] <= r->shortest_timeout_ns)) {
+                    median_ms = ((double)r->times[(attempts-1)/2] + (double)r->times[attempts/2])/2e6;
+                    snprintf(mid,sizeof(mid),"%.6f",median_ms);
+                }
             }
             if (html) {
                 fprintf(out,"<tr><td>%s</td><td>%s</td><td>%s</td><td>%zu</td><td>%zu</td><td>%s</td><td>%s</td><td>%s</td><td>",

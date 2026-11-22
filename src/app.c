@@ -111,8 +111,34 @@ ds_status ds_preset(ds_cnf *out, size_t index)
     return DS_OK;
 }
 
+static void print_certificate(FILE *out, const ds_count_certificate *certificate)
+{
+    uint32_t index;
+
+    for (index = 0u; index < certificate->clause_count; ++index) {
+        fprintf(out, "c certificate clause %u\n", certificate->clauses[index] + 1u);
+    }
+    for (index = 0u; index < certificate->group_count; ++index) {
+        uint32_t position;
+
+        fputs("c certificate group", out);
+        for (position = certificate->group_offsets[index];
+            position < certificate->group_offsets[index + 1u]; ++position) {
+            fprintf(out, " %d", certificate->group_literals[position]);
+        }
+        fputs(" 0\n", out);
+    }
+    if (certificate->refuted_count > 0u) {
+        fputs("c certificate refuted", out);
+        for (index = 0u; index < certificate->refuted_count; ++index) {
+            fprintf(out, " %d", certificate->refuted[index]);
+        }
+        fputs(" 0\n", out);
+    }
+}
+
 int ds_run(FILE *out, const ds_cnf *f, const ds_cdcl_config *cfg, bool cdcl,
-    bool measure, bool detail, uint64_t parse_ns)
+    bool measure, bool detail, bool hall, bool emit_certificate, uint64_t parse_ns)
 {
     /* Even in timing mode a SAT result must supply a verifiable witness.
      * Validation runs after the solve clock. */
@@ -121,14 +147,17 @@ int ds_run(FILE *out, const ds_cnf *f, const ds_cdcl_config *cfg, bool cdcl,
     ds_work_ledger ledger = {0};
     ds_reason_summary summary = {0};
     ds_verdict verdict;
+    ds_count_certificate certificate = {0};
     uint64_t start = ds_now_ns();
     ds_status status = cdcl ? ds_solve_cdcl(f, cfg, &verdict, model, &ledger)
-        : ds_solve_traced(f, cfg, &verdict, model, &ledger, &summary, detail ? out : NULL);
+        : ds_solve_configured(f, cfg, hall, &verdict, model, &ledger, &summary,
+            detail ? out : NULL, emit_certificate ? &certificate : NULL);
     uint64_t elapsed = ds_now_ns()-start;
     bool valid = false;
     if (status != DS_OK || (verdict == DS_VERDICT_SAT &&
         (ds_cnf_evaluate(f, model, &valid) != DS_OK || !valid))) {
         fprintf(out, "c solver error %s\n", status == DS_OK ? "invalid SAT witness" : ds_status_string(status));
+        ds_count_certificate_destroy(&certificate);
         free(model);
         return 1;
     }
@@ -142,7 +171,15 @@ int ds_run(FILE *out, const ds_cnf *f, const ds_cdcl_config *cfg, bool cdcl,
             if (summary.count_report.forced_clause)
                 fprintf(out, "c forced-false demand clause %u\n", summary.count_report.forced_clause);
         }
+        if (summary.source == DS_SOURCE_HALL) {
+            fprintf(out, "c demand %u capacity %u\n", summary.hall_report.violator_demands,
+                summary.hall_report.violator_groups);
+        }
+        if (emit_certificate) print_certificate(out, &certificate);
         if (detail) {
+            fprintf(out, "c hall phase %u probes %u edges %" PRIu64 " limit %u\n",
+                summary.hall_report.phase, summary.hall_report.probes, summary.hall_report.conflict_edges,
+                (unsigned)summary.hall_report.budget_exhausted);
             fprintf(out, "c variables %u clauses %u literals %u hash 0x%016" PRIx64 "\n",
                 f->variable_count, f->clause_count, f->literal_count, ds_cnf_hash(f));
             fprintf(out, "c parse_ns %" PRIu64 " solve_with_trace_ns %" PRIu64 "\n", parse_ns, elapsed);
@@ -169,6 +206,7 @@ int ds_run(FILE *out, const ds_cnf *f, const ds_cdcl_config *cfg, bool cdcl,
             fputs(" 0\n", out);
         } else fputs(verdict == DS_VERDICT_UNSAT ? "s UNSATISFIABLE\n" : "s UNKNOWN\n", out);
     }
+    ds_count_certificate_destroy(&certificate);
     free(model);
     return ferror(out) ? 1 : verdict == DS_VERDICT_UNSAT ? 20 : verdict == DS_VERDICT_SAT ? 10 : 0;
 }

@@ -4,7 +4,7 @@
 
 static int usage(FILE *out)
 {
-    fputs("dense-solver [--measure | --explain] [--cdcl] [options] [FILE|-]\n"
+    fputs("dense-solver [--measure | --explain] [--cdcl] [--no-hall] [options] [FILE|-]\n"
         "  --heuristic activity|fixed|placebo   --seed N\n"
         "  --no-restarts   --luby N   --no-reduce   --interval N\n"
         "  --decisions N   --conflicts N  (zero means unlimited)\n"
@@ -16,7 +16,7 @@ static int usage(FILE *out)
 int main(int argc, char **argv)
 {
     ds_cnf formula = {0};
-    bool measure = false, cdcl = false, detail = false;
+    bool measure = false, cdcl = false, detail = false, hall = true;
     ds_cdcl_config cfg = ds_cdcl_config_default();
     cfg.enable_db_reduction = true;
     const char *file = NULL;
@@ -49,6 +49,7 @@ int main(int argc, char **argv)
         const char *a = argv[i];
         if (!strcmp(a,"--measure")) measure = true;
         else if (!strcmp(a,"--explain")) detail = true;
+        else if (!strcmp(a,"--no-hall")) hall = false;
         else if (!strcmp(a,"--cdcl")) cdcl = true;
         else if (!strcmp(a,"--no-restarts")) cfg.enable_restarts = false;
         else if (!strcmp(a,"--no-reduce")) cfg.enable_db_reduction = false;
@@ -66,7 +67,7 @@ int main(int argc, char **argv)
     bool failed = ferror(fp);
     if (fp != stdin && fclose(fp)) failed = true;
     int result = 1;
-    if (status == DS_OK && !failed) result = ds_run(stdout, &formula, &cfg, cdcl, measure, detail, elapsed);
+    if (status == DS_OK && !failed) result = ds_run(stdout, &formula, &cfg, cdcl, measure, detail, hall, detail, elapsed);
     else fprintf(stderr,"Could not read DIMACS input (%s).\n",ds_status_string(status));
     ds_cnf_destroy(&formula);
     return fflush(stdout) ? 1 : result;
