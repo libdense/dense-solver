@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use this software or benchmark, please cite this release."
+title: "dense-solver: A pigeonhole SAT benchmark"
+type: software
+version: "0.0.2"
+authors:
+  - given-names: Merlin
+    family-names: Numa
+license: MIT
+repository-code: "https://github.com/libdense/dense-solver"
+abstract: >-
+  A C SAT solver and a reproducible single-core benchmark of the pigeonhole
+  principle. The release includes pairwise and sequential-counter DIMACS inputs,
+  native source, a reusable counting pass, a local browser interface and individual timings. Merlin Numa
+  directed the work using OpenAI ChatGPT and Anthropic Claude through paid
+  subscriptions.
+keywords:
+  - Boolean satisfiability
+  - pigeonhole principle
+  - cardinality constraints
+  - SAT solver
+  - reproducible benchmarking
+
+references:
+  - type: software
+    title: "Eclipse"
+    version: "0.0.61"
+    year: 2026
+    authors:
+      - given-names: Merlin
+        family-names: Numa
+    notes: "Author-retained source archive dated November 8, 2026. See ECLIPSE-HISTORY.md for archive and changelog SHA-256 digests."

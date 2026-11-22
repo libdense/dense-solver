@@ -1,0 +1,48 @@
+{
+  "title": "dense-solver: A pigeonhole SAT benchmark",
+  "upload_type": "software",
+  "version": "0.0.2",
+  "creators": [
+    {
+      "name": "Numa, Merlin"
+    }
+  ],
+  "description": "<p>A C11 SAT solver with a reusable counting rule for explicit and implied conflicts. The six bundled pigeonhole formulas use pairwise or sequential encodings. On the 65/64 sequential input, median end-to-end time was 2.87 ms for dense-solver and 114.63 ms for satsuma-iter+kissat over seven single-core runs with proof logging off.</p><p>Includes C source, a local browser interface, input files, raw timings and reproduction commands. Merlin Numa directed development using the most capable ChatGPT and Claude models available through the author's paid subscriptions at the time.</p><p>Merlin Numa initiated and directed Eclipse through successive research prompts. Eclipse v0.0.4 recorded the original pigeonhole counting rule on August 19, 2026. The release includes dated changelog excerpts and the SHA-256 fingerprint of the Eclipse v0.0.61 source archive.</p>",
+  "license": "mit",
+  "access_right": "open",
+  "language": "eng",
+  "keywords": [
+    "Boolean satisfiability",
+    "pigeonhole principle",
+    "cardinality constraints",
+    "SAT solver",
+    "reproducible benchmarking"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/libdense/dense-solver",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    },
+    {
+      "identifier": "10.1007/978-3-319-09284-3_22",
+      "relation": "cites",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1007/11564751_73",
+      "relation": "cites",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1007/978-3-319-94144-8_26",
+      "relation": "cites",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1016/0304-3975(85)90144-6",
+      "relation": "cites",
+      "scheme": "doi"
+    }
+  ]
+}
